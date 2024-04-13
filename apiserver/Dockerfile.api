@@ -27,7 +27,7 @@ RUN apk add --no-cache --virtual .build-deps \
     "libc-dev" \
     "linux-headers" \
     && \
-    pip install -r requirements.txt --compile --no-cache-dir \
+    pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt --compile --no-cache-dir \
     && \
     apk del .build-deps
 
