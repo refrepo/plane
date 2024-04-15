@@ -1,9 +1,8 @@
 networks:
-  default:
-    name: my_plane_compose_net
+  dev_env:
     driver: bridge
-  # dev_env:
-  #   driver: bridge
+  traefik-proxy:
+    external: true
 
 volumes:
   redisdata:
@@ -15,18 +14,16 @@ services:
   plane-redis:
     image: redis:6.2.7-alpine
     restart: unless-stopped
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
     volumes:
       - redisdata:/data
  
   plane-minio:
     image: minio/minio
     restart: unless-stopped
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
     command: server /export --console-address ":9090"
     volumes:
       - uploads:/export
@@ -39,9 +36,10 @@ services:
   plane-db:
     image: postgres:15.2-alpine
     restart: unless-stopped
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
+    ports:
+      - "127.0.0.1:25432:5432"
     command: postgres -c 'max_connections=1000'
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -55,9 +53,8 @@ services:
       context: .
       dockerfile: ./web/Dockerfile.dev
     restart: unless-stopped
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
     volumes:
       - ./web:/app/web
     env_file:
@@ -71,9 +68,8 @@ services:
       context: .
       dockerfile: ./space/Dockerfile.dev
     restart: unless-stopped
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
     volumes:
       - ./space:/app/space
     depends_on:
@@ -88,9 +84,8 @@ services:
       args:
         DOCKER_BUILDKIT: 1
     restart: unless-stopped
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
     volumes:
       - ./apiserver:/code
     command: ./bin/takeoff.local
@@ -107,9 +102,8 @@ services:
       args:
         DOCKER_BUILDKIT: 1
     restart: unless-stopped
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
     volumes:
       - ./apiserver:/code
     command: ./bin/worker
@@ -127,9 +121,8 @@ services:
       args:
         DOCKER_BUILDKIT: 1
     restart: unless-stopped
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
     volumes:
       - ./apiserver:/code
     command: ./bin/beat
@@ -147,9 +140,8 @@ services:
       args:
         DOCKER_BUILDKIT: 1
     restart: "no"
-    # networks:
-    #   - dev_env
-    #   - default
+    networks:
+      - dev_env
     volumes:
       - ./apiserver:/code
     command: >
@@ -167,26 +159,15 @@ services:
       dockerfile: Dockerfile.dev
     restart: unless-stopped
     labels:
-      # - networks=bridge
-      - networks=compose_default
+      # - networks=compose_default
       - traefik.http.routers.plane.tls=true
       - traefik.http.routers.plane.entrypoints=https
       - traefik.http.routers.plane.rule=Host(`plane.lilyzt.com`)
       - traefik.http.routers.plane.service=plane
       - traefik.http.services.plane.loadbalancer.server.port=80
-    network_mode: bridge
-    links:
-      # - plane-web
-      # - plane-api
-      # - plane-space
-      # - plane-plane-minio
-      # compose-network-nginx-1
-      - web
-      - api
-      - space
-      - plane-minio
-    # networks:
-    #   - dev_env
+    networks:
+      - dev_env
+      - traefik-proxy
     # ports:
     #   - ${NGINX_PORT}:80
     # ports:
@@ -200,14 +181,14 @@ services:
       - web
       - api
       - space
-  connect-bridge:
-    image: docker:24.0.4
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: /bin/sh -c "docker ps -f label=networks=bridge -q | xargs -I'{}' docker network connect bridge {}"
+  # connect-bridge:
+  #   image: docker:24.0.4
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   command: /bin/sh -c "docker ps -f label=networks=bridge -q | xargs -I'{}' docker network connect bridge {}"
 
-  connect-compose:
-    image: docker:24.0.4
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: /bin/sh -c "docker ps -f label=networks=compose_default -q | xargs -I'{}' docker network connect dev_env {}"
+  # connect-compose:
+  #   image: docker:24.0.4
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   command: /bin/sh -c "docker ps -f label=networks=compose_default -q | xargs -I'{}' docker network connect dev_env {}"
